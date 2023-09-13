@@ -17,7 +17,7 @@ type Display struct {
 }
 
 type Monitor struct {
-	VoltagePower   float32 `json:"voltage"`
+	Voltage   float32 `json:"voltage"`
 	DisplayMonitor Display `json:"display"`
 	GSyncPrem      bool    `json:"gsync_prem"`
 	Curved         bool    `json:"curved"`
@@ -62,7 +62,7 @@ func addMonitor() {
 		GSync:      true,
 	}
 	monitor := Monitor{
-		VoltagePower:   220,
+		Voltage:   220,
 		DisplayMonitor: display,
 		GSyncPrem:      true,
 		Curved:         false,
