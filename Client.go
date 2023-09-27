@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
-    	"fmt"
-	"bytes"
 )
 
 type Display struct {
@@ -21,6 +22,7 @@ type Monitor struct {
 	DisplayMonitor Display `json:"display"`
 	GSyncPrem      bool    `json:"gsync_prem"`
 	Curved         bool    `json:"curved"`
+	TypeDisplayID  int     `json:"type_display_id"`
 }
 
 func main() {
@@ -30,11 +32,31 @@ func main() {
 }
 
 func addDisplay() {
-	display := Display{
-		Diagonal:   27,
-		Resolution: "2560x1440",
-		TypeMatrix: "IPS",
-		GSync:      true,
+	var display Display
+
+	fmt.Println("Введите данные для дисплея:")
+	fmt.Print("Диагональ: ")
+	_, err := fmt.Scanf("%f", &display.Diagonal)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Print("Разрешение: ")
+	_, err = fmt.Scanf("%s", &display.Resolution)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Print("Тип матрицы: ")
+	_, err = fmt.Scanf("%s", &display.TypeMatrix)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Print("Поддержка GSync (true/false): ")
+	_, err = fmt.Scanf("%t", &display.GSync)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	data, err := json.Marshal(display)
@@ -55,66 +77,96 @@ func addDisplay() {
 }
 
 func addMonitor() {
-    var display Display
-    fmt.Println("Введите данные для монитора:")
-    fmt.Print("Диагональ: ")
-    _, err := fmt.Scanf("%f", &display.Diagonal)
-    if err != nil {
-        log.Fatal(err)
-    }
+	var display Display
 
-    fmt.Print("Разрешение: ")
-    _, err = fmt.Scanf("%s", &display.Resolution)
-    if err != nil {
-        log.Fatal(err)
-    }
+	fmt.Println("Введите данные для монитора:")
+	fmt.Print("Диагональ: ")
+	_, err := fmt.Scanf("%f", &display.Diagonal)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    fmt.Print("Тип матрицы: ")
-    _, err = fmt.Scanf("%s", &display.TypeMatrix)
-    if err != nil {
-        log.Fatal(err)
-    }
+	fmt.Print("Разрешение: ")
+	_, err = fmt.Scanf("%s", &display.Resolution)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    fmt.Print("Поддержка GSync (true/false): ")
-    _, err = fmt.Scanf("%t", &display.GSync)
-    if err != nil {
-        log.Fatal(err)
-    }
+	fmt.Print("Тип матрицы: ")
+	_, err = fmt.Scanf("%s", &display.TypeMatrix)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    monitor := Monitor{
-        Voltage:        220,
-        DisplayMonitor: display,
-        GSyncPrem:      true,
-        Curved:         false,
-    }
+	fmt.Print("Поддержка GSync (true/false): ")
+	_, err = fmt.Scanf("%t", &display.GSync)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    data, err := json.Marshal(monitor)
-    if err != nil {
-        log.Fatal(err)
-    }
+	var voltage float32
+	fmt.Print("Напряжение: ")
+	_, err = fmt.Scanf("%f", &voltage)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    resp, err := http.Post("http://127.0.0.1:8080/addMonitor",
-        "application/json",
-        bytes.NewBuffer(data))
+	var gsyncPrem bool
+	fmt.Print("Премиум GSync (true/false): ")
+	_, err = fmt.Scanf("%t", &gsyncPrem)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer resp.Body.Close()
+	var curved bool
+	fmt.Print("Изогнутый экран (true/false): ")
+	_, err = fmt.Scanf("%t", &curved)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var typeDisplayID int
+	fmt.Print("ID типа дисплея: ")
+	_, err = fmt.Scanf("%d", &typeDisplayID)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	monitor := Monitor{
+		Voltage:        voltage,
+		DisplayMonitor: display,
+		GSyncPrem:      gsyncPrem,
+		Curved:         curved,
+		TypeDisplayID:  typeDisplayID,
+	}
+
+	data, err := json.Marshal(monitor)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resp, err := http.Post("http://127.0.0.1:8080/addMonitor",
+		"application/json",
+		bytes.NewBuffer(data))
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
 }
 
 func getAll() {
-    time.Sleep(1 * time.Second)
-    resp, err := http.Get("http://127.0.0.1:8080/getAll")
+	time.Sleep(1 * time.Second)
+	resp, err := http.Get("http://127.0.0.1:8080/getAll")
 
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer resp.Body.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
 
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        log.Fatal(err)
-    }
-    log.Println(string(body))
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(string(body))
 }
