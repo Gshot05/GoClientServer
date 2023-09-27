@@ -28,7 +28,7 @@ type Monitor struct {
 var db *sql.DB
 
 func main() {
-	connStr := "user=postgres password=pass dbname=GoDataBase sslmode=disable"
+	connStr := "user=postgres password=0Shikhrik12$& dbname=GoDataBase sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -72,7 +72,7 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.Exec("INSERT INTO Type_Monitor (Name_Voltage, Name_Gsync_Prem, Name_Curved, Type_Display_ID) VALUES ($1, $2, $3, $4)",
-		monitor.Voltage, monitor.GSyncPrem, monitor.Curved, monitor.TypeDisplayID)
+		monitor.Voltage, monitor.GSyncPrem, monitor.Curved, 1)
 
 	if err != nil {
 		log.Println("Ошибка при добавлении в базу данных:", err)
@@ -84,11 +84,11 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAll(w http.ResponseWriter, r *http.Request) {
-	var monitors []Monitor 
+	var monitors []Monitor
 	rows, err := db.Query(`
         SELECT
             m.Name_Voltage,
-            m.Name_Gsync_Prem, -- Измените на правильное имя столбца
+            m.Name_Gsync_Prem, 
             m.Name_Curved,
             d.Name_Diagonal,
             d.Name_Resolution,
