@@ -28,7 +28,7 @@ type Monitor struct {
 var db *sql.DB
 
 func main() {
-	connStr := "user=postgres password=pass dbname=GoDataBase sslmode=disable"
+	connStr := "user=postgres password=0Shikhrik12$& dbname=GoDataBase sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -84,20 +84,21 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAll(w http.ResponseWriter, r *http.Request) {
+	var monitors []Monitor // Инициализация среза
 	rows, err := db.Query(`
-		SELECT
-			m.Name_Voltage,
-			m.Name_Gsync_Prem, -- Измените на правильное имя столбца
-			m.Name_Curved,
-			d.Name_Diagonal,
-			d.Name_Resolution,
-			d.Type_Type,
-			d.Type_Gsync
-		FROM
-			Type_Monitor AS m
-		INNER JOIN
-			Type_Display AS d ON m.Type_Display_ID = d.ID_Type_Display
-	`)
+        SELECT
+            m.Name_Voltage,
+            m.Name_Gsync_Prem, -- Измените на правильное имя столбца
+            m.Name_Curved,
+            d.Name_Diagonal,
+            d.Name_Resolution,
+            d.Type_Type,
+            d.Type_Gsync
+        FROM
+            Type_Monitor AS m
+        INNER JOIN
+            Type_Display AS d ON m.Type_Display_ID = d.ID_Type_Display
+    `)
 
 	if err != nil {
 		log.Println("Ошибка при запросе данных из базы данных:", err)
@@ -106,7 +107,6 @@ func getAll(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var monitors []Monitor
 	for rows.Next() {
 		var monitor Monitor
 		var display Display
