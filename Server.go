@@ -22,12 +22,13 @@ type Monitor struct {
 	DisplayMonitor Display `json:"display"`
 	GSyncPrem      bool    `json:"gsync_prem"`
 	Curved         bool    `json:"curved"`
+	TypeDisplayID  int     `json:"type_display_id"`
 }
 
 var db *sql.DB
 
 func main() {
-	connStr := "user=postgres password=0Shikhrik12$& dbname=GoDataBase sslmode=disable"
+	connStr := "user=postgres password=pass dbname=GoDataBase sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -51,7 +52,7 @@ func addDisplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO Type_Displays (Name_Diagonal, Name_Resolution, Type_Type, Type_Gsync) VALUES ($1, $2, $3, $4)",
+	_, err = db.Exec("INSERT INTO Type_Display (Name_Diagonal, Name_Resolution, Type_Type, Type_Gsync) VALUES ($1, $2, $3, $4)",
 		display.Diagonal, display.Resolution, display.TypeMatrix, display.GSync)
 	if err != nil {
 		log.Println("Ошибка при добавлении в базу данных:", err)
@@ -70,8 +71,9 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO Type_Monitor (Name_Voltage, Name_GsyncPrem, Name_Curved, Type_Displays_ID) VALUES ($1, $2, $3, $4)",
-		monitor.Voltage, monitor.GSyncPrem, monitor.Curved, monitor.Type_Displays_ID)
+	_, err = db.Exec("INSERT INTO Type_Monitor (Name_Voltage, Name_Gsync_Prem, Name_Curved, Type_Display_ID) VALUES ($1, $2, $3, $4)",
+		monitor.Voltage, monitor.GSyncPrem, monitor.Curved, monitor.TypeDisplayID)
+
 	if err != nil {
 		log.Println("Ошибка при добавлении в базу данных:", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -85,7 +87,7 @@ func getAll(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query(`
 		SELECT
 			m.Name_Voltage,
-			m.Name_GsyncPrem,
+			m.Name_Gsync_Prem, -- Измените на правильное имя столбца
 			m.Name_Curved,
 			d.Name_Diagonal,
 			d.Name_Resolution,
@@ -94,8 +96,9 @@ func getAll(w http.ResponseWriter, r *http.Request) {
 		FROM
 			Type_Monitor AS m
 		INNER JOIN
-			Type_Displays AS d ON m.Type_Displays_ID = d.ID_Type_Displays
+			Type_Display AS d ON m.Type_Display_ID = d.ID_Type_Display
 	`)
+
 	if err != nil {
 		log.Println("Ошибка при запросе данных из базы данных:", err)
 		w.WriteHeader(http.StatusInternalServerError)
