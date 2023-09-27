@@ -3,7 +3,6 @@
 // import (
 // 	"bytes"
 // 	"encoding/json"
-// 	"fmt"
 // 	"io/ioutil"
 // 	"log"
 // 	"net/http"
@@ -18,11 +17,10 @@
 // }
 
 // type Monitor struct {
-// 	Voltage        float32 `json:"voltage"`
+// 	VoltagePower   float32 `json:"voltage"`
 // 	DisplayMonitor Display `json:"display"`
 // 	GSyncPrem      bool    `json:"gsync_prem"`
 // 	Curved         bool    `json:"curved"`
-// 	TypeDisplayID  int     `json:"type_display_id"`
 // }
 
 // func main() {
@@ -32,31 +30,11 @@
 // }
 
 // func addDisplay() {
-// 	var display Display
-
-// 	fmt.Println("Введите данные для дисплея:")
-// 	fmt.Print("Диагональ: ")
-// 	_, err := fmt.Scanf("%f", &display.Diagonal)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	fmt.Print("Разрешение: ")
-// 	_, err = fmt.Scanf("%s", &display.Resolution)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	fmt.Print("Тип матрицы: ")
-// 	_, err = fmt.Scanf("%s", &display.TypeMatrix)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	fmt.Print("Поддержка GSync (true/false): ")
-// 	_, err = fmt.Scanf("%t", &display.GSync)
-// 	if err != nil {
-// 		log.Fatal(err)
+// 	display := Display{
+// 		Diagonal:   27,
+// 		Resolution: "2560x1440",
+// 		TypeMatrix: "IPS",
+// 		GSync:      true,
 // 	}
 
 // 	data, err := json.Marshal(display)
@@ -77,67 +55,17 @@
 // }
 
 // func addMonitor() {
-// 	var display Display
-
-// 	fmt.Println("Введите данные для монитора:")
-// 	fmt.Print("Диагональ: ")
-// 	_, err := fmt.Scanf("%f", &display.Diagonal)
-// 	if err != nil {
-// 		log.Fatal(err)
+// 	display := Display{
+// 		Diagonal:   27,
+// 		Resolution: "2560x1440",
+// 		TypeMatrix: "IPS",
+// 		GSync:      true,
 // 	}
-
-// 	fmt.Print("Разрешение: ")
-// 	_, err = fmt.Scanf("%s", &display.Resolution)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	fmt.Print("Тип матрицы: ")
-// 	_, err = fmt.Scanf("%s", &display.TypeMatrix)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	fmt.Print("Поддержка GSync (true/false): ")
-// 	_, err = fmt.Scanf("%t", &display.GSync)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	var voltage float32
-// 	fmt.Print("Напряжение: ")
-// 	_, err = fmt.Scanf("%f", &voltage)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	var gsyncPrem bool
-// 	fmt.Print("Премиум GSync (true/false): ")
-// 	_, err = fmt.Scanf("%t", &gsyncPrem)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	var curved bool
-// 	fmt.Print("Изогнутый экран (true/false): ")
-// 	_, err = fmt.Scanf("%t", &curved)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	var typeDisplayID int
-// 	fmt.Print("ID типа дисплея: ")
-// 	_, err = fmt.Scanf("%d", &typeDisplayID)
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
 // 	monitor := Monitor{
-// 		Voltage:        voltage,
+// 		VoltagePower:   220,
 // 		DisplayMonitor: display,
-// 		GSyncPrem:      gsyncPrem,
-// 		Curved:         curved,
-// 		TypeDisplayID:  typeDisplayID,
+// 		GSyncPrem:      true,
+// 		Curved:         false,
 // 	}
 
 // 	data, err := json.Marshal(monitor)
@@ -176,6 +104,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -197,23 +126,37 @@ type Monitor struct {
 }
 
 func main() {
-	go addMonitor()
-	go addDisplay()
+	var display Display
+	fmt.Println("Введите диагональ (например, 27):")
+	fmt.Scan(&display.Diagonal)
+	fmt.Println("Введите разрешение (например, 2560x1440):")
+	fmt.Scan(&display.Resolution)
+	fmt.Println("Введите тип матрицы (например, IPS):")
+	fmt.Scan(&display.TypeMatrix)
+	fmt.Println("Введите поддержку GSync (true/false):")
+	fmt.Scan(&display.GSync)
+
+	addDisplay(display)
+
+	var monitor Monitor
+	fmt.Println("Введите напряжение (например, 220):")
+	fmt.Scan(&monitor.VoltagePower)
+	fmt.Println("Введите поддержку GSync Premium (true/false):")
+	fmt.Scan(&monitor.GSyncPrem)
+	fmt.Println("Введите кривизну (true/false):")
+	fmt.Scan(&monitor.Curved)
+
+	monitor.DisplayMonitor = display
+	addMonitor(monitor)
+
 	getAll()
 }
 
-func addDisplay() {
-	display := Display{
-		Diagonal:   27,
-		Resolution: "2560x1440",
-		TypeMatrix: "IPS",
-		GSync:      true,
-	}
-
+func addDisplay(display Display) {
 	data, err := json.Marshal(display)
-
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Ошибка при маршалинге данных:", err)
+		return
 	}
 
 	resp, err := http.Post("http://127.0.0.1:8080/addDisplay",
@@ -221,29 +164,18 @@ func addDisplay() {
 		bytes.NewBuffer(data))
 
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Ошибка при отправке запроса:", err)
+		return
 	}
 
 	defer resp.Body.Close()
 }
 
-func addMonitor() {
-	display := Display{
-		Diagonal:   27,
-		Resolution: "2560x1440",
-		TypeMatrix: "IPS",
-		GSync:      true,
-	}
-	monitor := Monitor{
-		VoltagePower:   220,
-		DisplayMonitor: display,
-		GSyncPrem:      true,
-		Curved:         false,
-	}
-
+func addMonitor(monitor Monitor) {
 	data, err := json.Marshal(monitor)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Ошибка при маршалинге данных:", err)
+		return
 	}
 
 	resp, err := http.Post("http://127.0.0.1:8080/addMonitor",
@@ -251,8 +183,10 @@ func addMonitor() {
 		bytes.NewBuffer(data))
 
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println("Ошибка при отправке запроса:", err)
+		return
 	}
+
 	defer resp.Body.Close()
 }
 
