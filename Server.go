@@ -84,7 +84,7 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAll(w http.ResponseWriter, r *http.Request) {
-	var monitors []Monitor // Инициализация среза
+	var monitors []Monitor 
 	rows, err := db.Query(`
         SELECT
             m.Name_Voltage,
