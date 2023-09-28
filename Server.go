@@ -28,7 +28,7 @@ type Monitor struct {
 var db *sql.DB
 
 func main() {
-	connStr := "user=postgres password=0Shikhrik12$& dbname=GoDataBase sslmode=disable"
+	connStr := "user=postgres password= dbname= sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
