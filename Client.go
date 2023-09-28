@@ -52,6 +52,12 @@ func main() {
 	addMonitor(monitor)
 
 	getAll()
+
+	var id string
+	fmt.Println("Введите ID монитора:")
+	fmt.Scan(&id)
+
+	getMonitor(id)
 }
 
 func addDisplay(display Display) {
@@ -106,4 +112,25 @@ func getAll() {
 		log.Fatal(err)
 	}
 	log.Println(string(body))
+}
+
+func getMonitor(ID string) {
+	resp, err := http.Get("http://127.0.0.1:8080/getMonitor?id=" + ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var monitor Monitor
+	err = json.Unmarshal(body, &monitor)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Monitor: %+v\n", monitor)
 }
