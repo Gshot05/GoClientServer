@@ -18,17 +18,17 @@ type Display struct {
 }
 
 type Monitor struct {
-	Voltage        float32 `json:"voltage"`
-	DisplayMonitor Display `json:"display"`
-	GSyncPrem      bool    `json:"gsync_prem"`
-	Curved         bool    `json:"curved"`
-	TypeDisplayID  int     `json:"type_display_id"`
+	Voltage         float32 `json:"voltage"`
+	DisplayMonitor  Display `json:"display"`
+	GSyncPrem       bool    `json:"gsync_prem"`
+	Curved          bool    `json:"curved"`
+	Type_Display_ID int     `json:"type_display_id"`
 }
 
 var db *sql.DB
 
 func main() {
-	connStr := "user=postgres password=pass dbname=GoDataBase sslmode=disable"
+	connStr := "user=postgres password=pass dbname=dbname sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -93,7 +93,8 @@ func getAll(w http.ResponseWriter, r *http.Request) {
             d.Name_Diagonal,
             d.Name_Resolution,
             d.Type_Type,
-            d.Type_Gsync
+            d.Type_Gsync,
+			m.Type_Display_ID
         FROM
             Type_Monitor AS m
         INNER JOIN
@@ -118,6 +119,7 @@ func getAll(w http.ResponseWriter, r *http.Request) {
 			&display.Resolution,
 			&display.TypeMatrix,
 			&display.GSync,
+			&monitor.Type_Display_ID,
 		)
 		if err != nil {
 			log.Println("Ошибка при сканировании данных из базы данных:", err)
@@ -136,4 +138,8 @@ func getAll(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
+}
+
+func getMonitor(w http.ResponseWriter, r *http.Request) {
+
 }
