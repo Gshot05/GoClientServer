@@ -28,7 +28,7 @@ type Monitor struct {
 var db *sql.DB
 
 func main() {
-	connStr := "user=postgres password=pass dbname=dbname sslmode=disable"
+	connStr := "user=postgres password=0Shikhrik12$& dbname=GoDataBase sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -41,6 +41,7 @@ func main() {
 	http.HandleFunc("/addDisplay", addDisplay)
 	http.HandleFunc("/addMonitor", addMonitor)
 	http.HandleFunc("/getAll", getAll)
+	http.HandleFunc("/getMonitor", getMonitor) // Добавлен обработчик для getMonitor
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
@@ -141,5 +142,44 @@ func getAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func getMonitor(w http.ResponseWriter, r *http.Request) {
+	id := r.FormValue("id")
+	var monitor Monitor
+	var display Display
+	err := db.QueryRow(`
+        SELECT
+            m.Name_Voltage,
+            m.Name_Gsync_Prem, 
+            m.Name_Curved,
+            d.Name_Diagonal,
+            d.Name_Resolution,
+            d.Type_Type,
+            d.Type_Gsync,
+			m.Type_Display_ID
+        FROM
+            Type_Monitor AS m
+        INNER JOIN
+            Type_Display AS d ON m.Type_Display_ID = d.ID_Type_Display
+		WHERE
+			m.Type_Display_ID = $1
+    `, id).Scan(
+		&monitor.Voltage,
+		&monitor.GSyncPrem,
+		&monitor.Curved,
+		&display.Diagonal,
+		&display.Resolution,
+		&display.TypeMatrix,
+		&display.GSync,
+		&monitor.Type_Display_ID,
+	)
 
+	if err != nil {
+		log.Println("Ошибка при запросе данных из базы данных:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	monitor.DisplayMonitor = display
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(monitor)
 }
