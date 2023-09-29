@@ -41,7 +41,7 @@ func main() {
 	http.HandleFunc("/addDisplay", addDisplay)
 	http.HandleFunc("/addMonitor", addMonitor)
 	http.HandleFunc("/getAll", getAll)
-	http.HandleFunc("/getMonitor", getMonitor) // Добавлен обработчик для getMonitor
+	http.HandleFunc("/getMonitor", getMonitor)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
