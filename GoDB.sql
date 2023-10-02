@@ -18,3 +18,13 @@ select * from Type_Monitor;
 
 drop TABLE Type_Monitor;
 drop TABLE Type_Display;
+
+
+CREATE TABLE Type_Users(
+	ID_Type_Users serial not null constraint PK_Type_Users primary key,
+	Name_Username text not null constraint UQ_Type_Users Unique,
+	Name_Password text not null,
+	Name_email text not null,
+	Name_Is_Admin boolean not null
+);
+select * from Type_Users;
