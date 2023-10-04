@@ -1,21 +1,14 @@
 package main
 
 import (
-	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"time"
-)
 
-type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-	IsAdmin  bool   `json:"is_admin"`
-}
+	_ "github.com/lib/pq"
+)
 
 type Display struct {
 	Diagonal   float32 `json:"diag"`
@@ -25,210 +18,168 @@ type Display struct {
 }
 
 type Monitor struct {
-	VoltagePower    float32 `json:"voltage"`
+	Voltage         float32 `json:"voltage"`
 	DisplayMonitor  Display `json:"display"`
 	GSyncPrem       bool    `json:"gsync_prem"`
 	Curved          bool    `json:"curved"`
 	Type_Display_ID int     `json:"type_display_id"`
 }
 
+var db *sql.DB
+
 func main() {
-	var choice int
-	fmt.Println("Выберите опцию:")
-	fmt.Println("1. Авторизация")
-	fmt.Println("2. Регистрация")
-	fmt.Scan(&choice)
-
-	switch choice {
-	case 1:
-		loginMenu()
-	case 2:
-		registerMenu()
-	default:
-		fmt.Println("Неверный выбор")
-	}
-}
-
-func loginMenu() {
-	var user User
-	fmt.Println("Введите имя пользователя:")
-	fmt.Scan(&user.Username)
-	fmt.Println("Введите пароль:")
-	fmt.Scan(&user.Password)
-
-	token := login(user)
-
-	if token == "" {
-		log.Println("Ошибка при входе в систему.")
-		return
-	}
-
-	headers := map[string]string{"Authorization": token}
-
-	var monitor Monitor
-	fmt.Println("Введите напряжение (например, 220):")
-	fmt.Scan(&monitor.VoltagePower)
-	fmt.Println("Введите поддержку GSync Premium (true/false):")
-	fmt.Scan(&monitor.GSyncPrem)
-	fmt.Println("Введите кривизну (true/false):")
-	fmt.Scan(&monitor.Curved)
-	fmt.Println("Введите ID монитора:")
-	fmt.Scan(&monitor.Type_Display_ID)
-
-	monitor.DisplayMonitor = getDisplayInfo()
-	addMonitor(monitor, headers)
-
-	getAll(headers)
-
-	var id string
-	fmt.Println("Введите ID монитора:")
-	fmt.Scan(&id)
-
-	getMonitor(id, headers)
-}
-
-func registerMenu() {
-	var user User
-	fmt.Println("Введите имя пользователя:")
-	fmt.Scan(&user.Username)
-	fmt.Println("Введите пароль:")
-	fmt.Scan(&user.Password)
-	fmt.Println("Введите адрес электронной почты:")
-	fmt.Scan(&user.Email)
-
-	register(user)
-}
-
-func login(user User) string {
-	data, err := json.Marshal(user)
-	if err != nil {
-		fmt.Println("Ошибка при маршалинге данных:", err)
-		return ""
-	}
-
-	resp, err := http.Post("http://127.0.0.1:8080/auth",
-		"application/json",
-		bytes.NewBuffer(data))
-
-	if err != nil {
-		fmt.Println("Ошибка при отправке запроса:", err)
-		return ""
-	}
-
-	defer resp.Body.Close()
-	token, err := ioutil.ReadAll(resp.Body)
+	connStr := "user=postgres password= dbname= sslmode=disable"
+	var err error
+	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.Close()
 
-	return string(token)
+	fmt.Println("Запуск сервера...")
+
+	http.HandleFunc("/addDisplay", addDisplay)
+	http.HandleFunc("/addMonitor", addMonitor)
+	http.HandleFunc("/getAll", getAll)
+	http.HandleFunc("/getMonitor", getMonitor) // Добавлен обработчик для getMonitor
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func register(user User) {
-	data, err := json.Marshal(user)
-	if err != nil {
-		fmt.Println("Ошибка при маршалинге данных:", err)
-		return
-	}
-
-	resp, err := http.Post("http://127.0.0.1:8080/register",
-		"application/json",
-		bytes.NewBuffer(data))
-
-	if err != nil {
-		fmt.Println("Ошибка при отправке запроса:", err)
-		return
-	}
-
-	defer resp.Body.Close()
-}
-
-func getDisplayInfo() Display {
+func addDisplay(w http.ResponseWriter, r *http.Request) {
 	var display Display
-	fmt.Println("Введите диагональ (например, 27):")
-	fmt.Scan(&display.Diagonal)
-	fmt.Println("Введите разрешение (например, 2560x1440):")
-	fmt.Scan(&display.Resolution)
-	fmt.Println("Введите тип матрицы (например, IPS):")
-	fmt.Scan(&display.TypeMatrix)
-	fmt.Println("Введите поддержку GSync (true/false):")
-	fmt.Scan(&display.GSync)
-	return display
+	err := json.NewDecoder(r.Body).Decode(&display)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO Type_Display (Name_Diagonal, Name_Resolution, Type_Type, Type_Gsync) VALUES ($1, $2, $3, $4)",
+		display.Diagonal, display.Resolution, display.TypeMatrix, display.GSync)
+	if err != nil {
+		log.Println("Ошибка при добавлении в базу данных:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
-func addMonitor(monitor Monitor, headers map[string]string) {
-	data, err := json.Marshal(monitor)
-	if err != nil {
-		fmt.Println("Ошибка при маршалинге данных:", err)
-		return
-	}
-
-	req, err := http.NewRequest("POST", "http://127.0.0.1:8080/addMonitor", bytes.NewBuffer(data))
-	if err != nil {
-		fmt.Println("Ошибка при создании запроса:", err)
-		return
-	}
-
-	// Добавление заголовка Authorization
-	req.Header.Add("Authorization", headers["Authorization"])
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		fmt.Println("Ошибка при отправке запроса:", err)
-		return
-	}
-
-	defer resp.Body.Close()
-}
-
-func getAll(headers map[string]string) {
-	time.Sleep(1 * time.Second)
-	req, err := http.NewRequest("GET", "http://127.0.0.1:8080/getAll", nil)
-	if err != nil {
-		fmt.Println("Ошибка при создании запроса:", err)
-		return
-	}
-
-	req.Header.Add("Authorization", headers["Authorization"])
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println(string(body))
-}
-
-func getMonitor(id string, headers map[string]string) {
-	req, err := http.NewRequest("GET", "http://127.0.0.1:8080/getMonitor?id="+id, nil)
-	if err != nil {
-		fmt.Println("Ошибка при создании запроса:", err)
-		return
-	}
-
-	req.Header.Add("Authorization", headers["Authorization"])
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func addMonitor(w http.ResponseWriter, r *http.Request) {
 	var monitor Monitor
-	err = json.Unmarshal(body, &monitor)
+	err := json.NewDecoder(r.Body).Decode(&monitor)
 	if err != nil {
-		log.Fatal(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
-	log.Printf("Monitor: %+v\n", monitor)
+	_, err = db.Exec("INSERT INTO Type_Monitor (Name_Voltage, Name_Gsync_Prem, Name_Curved, Type_Display_ID) VALUES ($1, $2, $3, $4)",
+		monitor.Voltage, monitor.GSyncPrem, monitor.Curved, monitor.Type_Display_ID)
+
+	if err != nil {
+		log.Println("Ошибка при добавлении в базу данных:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func getAll(w http.ResponseWriter, r *http.Request) {
+	var monitors []Monitor
+	rows, err := db.Query(`
+        SELECT
+            m.Name_Voltage,
+            m.Name_Gsync_Prem,
+            m.Name_Curved,
+            d.Name_Diagonal,
+            d.Name_Resolution,
+            d.Type_Type,
+            d.Type_Gsync,
+			m.Type_Display_ID
+        FROM
+            Type_Monitor AS m
+        INNER JOIN
+            Type_Display AS d ON m.Type_Display_ID = d.ID_Type_Display
+    `)
+
+	if err != nil {
+		log.Println("Ошибка при запросе данных из базы данных:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var monitor Monitor
+		var display Display
+		err := rows.Scan(
+			&monitor.Voltage,
+			&monitor.GSyncPrem,
+			&monitor.Curved,
+			&display.Diagonal,
+			&display.Resolution,
+			&display.TypeMatrix,
+			&display.GSync,
+			&monitor.Type_Display_ID,
+		)
+		if err != nil {
+			log.Println("Ошибка при сканировании данных из базы данных:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		monitor.DisplayMonitor = display
+		monitors = append(monitors, monitor)
+	}
+
+	data := struct {
+		Monitors []Monitor `json:"monitors"`
+	}{
+		Monitors: monitors,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
+}
+
+func getMonitor(w http.ResponseWriter, r *http.Request) {
+	id := r.FormValue("id")
+	var monitor Monitor
+	var display Display
+	err := db.QueryRow(`
+        SELECT
+            m.Name_Voltage,
+            m.Name_Gsync_Prem,
+            m.Name_Curved,
+            d.Name_Diagonal,
+            d.Name_Resolution,
+            d.Type_Type,
+            d.Type_Gsync,
+			m.Type_Display_ID
+        FROM
+            Type_Monitor AS m
+        INNER JOIN
+            Type_Display AS d ON m.Type_Display_ID = d.ID_Type_Display
+		WHERE
+			m.Type_Display_ID = $1
+    `, id).Scan(
+		&monitor.Voltage,
+		&monitor.GSyncPrem,
+		&monitor.Curved,
+		&display.Diagonal,
+		&display.Resolution,
+		&display.TypeMatrix,
+		&display.GSync,
+		&monitor.Type_Display_ID,
+	)
+
+	if err != nil {
+		log.Println("Ошибка при запросе данных из базы данных:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	monitor.DisplayMonitor = display
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(monitor)
 }
