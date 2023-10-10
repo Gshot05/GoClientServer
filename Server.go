@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -25,7 +27,17 @@ type Monitor struct {
 	Type_Display_ID int     `json:"type_display_id"`
 }
 
-var db *sql.DB
+type User struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+	IsAdmin  bool   `json:"isAdmin"`
+}
+
+var (
+	db         *sql.DB
+	userTokens map[string]string
+)
 
 func main() {
 	connStr := "user=postgres password= dbname= sslmode=disable"
@@ -36,13 +48,88 @@ func main() {
 	}
 	defer db.Close()
 
+	userTokens = make(map[string]string)
+
 	fmt.Println("Запуск сервера...")
 
 	http.HandleFunc("/addDisplay", addDisplay)
 	http.HandleFunc("/addMonitor", addMonitor)
 	http.HandleFunc("/getAll", getAll)
-	http.HandleFunc("/getMonitor", getMonitor) // Добавлен обработчик для getMonitor
+	http.HandleFunc("/getMonitor", getMonitor)
+	http.HandleFunc("/register", registerUser)
+	http.HandleFunc("/registerMonitor", loginUser)
+
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func hashPassword(password string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(password))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func createToken(username, password string) string {
+	tokenData := password + username
+	hasher := sha256.New()
+	hasher.Write([]byte(tokenData))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func loginUser(w http.ResponseWriter, r *http.Request) {
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	hashedPassword := hashPassword(user.Password)
+
+	var storedPassword string
+	err = db.QueryRow("SELECT Name_Password FROM Type_Users WHERE Name_Username = $1", user.Username).Scan(&storedPassword)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if hashedPassword == storedPassword {
+		token := createToken(user.Username, storedPassword)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"token":"` + token + `"}`))
+	} else {
+		w.WriteHeader(http.StatusUnauthorized)
+	}
+}
+
+func registerUser(w http.ResponseWriter, r *http.Request) {
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	hashedPassword := hashPassword(user.Password)
+
+	_, err = db.Exec("INSERT INTO Type_Users (Name_Username, Name_Password, Name_email, Name_Is_Admin) VALUES ($1, $2, $3, $4)",
+		user.Username, hashedPassword, user.Email, user.IsAdmin)
+	if err != nil {
+		log.Println("Ошибка при добавлении пользователя в базу данных:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func isAdmin(username string) bool {
+	var isAdmin bool
+	err := db.QueryRow("SELECT Name_Is_Admin FROM Type_Users WHERE Name_Username = $1", username).Scan(&isAdmin)
+	if err != nil {
+		return false
+	}
+	return isAdmin
 }
 
 func addDisplay(w http.ResponseWriter, r *http.Request) {
@@ -50,6 +137,13 @@ func addDisplay(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&display)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	username := "example_user"
+
+	if !isAdmin(username) {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
@@ -69,6 +163,13 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&monitor)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	username := "example_user"
+
+	if !isAdmin(username) {
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
