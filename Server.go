@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -57,7 +58,7 @@ func main() {
 	http.HandleFunc("/getAll", getAll)
 	http.HandleFunc("/getMonitor", getMonitor)
 	http.HandleFunc("/register", registerUser)
-	http.HandleFunc("/registerMonitor", loginUser)
+	http.HandleFunc("/login", loginUser)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -123,13 +124,22 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func isAdmin(username string) bool {
-	var isAdmin bool
-	err := db.QueryRow("SELECT Name_Is_Admin FROM Type_Users WHERE Name_Username = $1", username).Scan(&isAdmin)
-	if err != nil {
-		return false
+// func isAdmin(username string) bool {
+// 	var isAdmin bool
+// 	err := db.QueryRow("SELECT Name_Is_Admin FROM Type_Users WHERE Name_Username = $1", username).Scan(&isAdmin)
+// 	if err != nil {
+// 		return false
+// 	}
+// 	return isAdmin
+// }
+
+func getUsernameFromToken(token string) (string, error) {
+	if len(token) < 8 || token[:7] != "Bearer " {
+		return "", errors.New("Некорректный формат токена")
 	}
-	return isAdmin
+
+	username := token[7:]
+	return username, nil
 }
 
 func addDisplay(w http.ResponseWriter, r *http.Request) {
@@ -140,12 +150,18 @@ func addDisplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := "example_user"
+	// token := r.Header.Get("Authorization")
 
-	if !isAdmin(username) {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	// username, err := getUsernameFromToken(token)
+	// if err != nil {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	return
+	// }
+
+	// if !isAdmin(username) {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	return
+	// }
 
 	_, err = db.Exec("INSERT INTO Type_Display (Name_Diagonal, Name_Resolution, Type_Type, Type_Gsync) VALUES ($1, $2, $3, $4)",
 		display.Diagonal, display.Resolution, display.TypeMatrix, display.GSync)
@@ -166,12 +182,18 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username := "example_user"
+	// token := r.Header.Get("Authorization")
 
-	if !isAdmin(username) {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	// username, err := getUsernameFromToken(token)
+	// if err != nil {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	return
+	// }
+
+	// if !isAdmin(username) {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	return
+	// }
 
 	_, err = db.Exec("INSERT INTO Type_Monitor (Name_Voltage, Name_Gsync_Prem, Name_Curved, Type_Display_ID) VALUES ($1, $2, $3, $4)",
 		monitor.Voltage, monitor.GSyncPrem, monitor.Curved, monitor.Type_Display_ID)
