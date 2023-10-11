@@ -13,12 +13,6 @@ CREATE TABLE Type_Monitor(
 	Name_Curved boolean not null,
 	Type_Display_ID int not null references Type_Display(ID_Type_Display)
 );
-select * from Type_Display;
-select * from Type_Monitor;
-
-drop TABLE Type_Monitor;
-drop TABLE Type_Display;
-
 
 CREATE TABLE Type_Users(
 	ID_Type_Users serial not null constraint PK_Type_Users primary key,
@@ -32,9 +26,17 @@ INSERT INTO Type_Users (ID_Type_Users,
 						Name_Password, 
 						Name_email, 
 						Name_Is_Admin)
-values (1, 
+values (12, 
 		'Admin', 
-		'42b1c2497694ae761ba3f36ea19b735e1f6fb77949ad676b01a2758dfcf05285', 
+		'8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918', 
 	    'email@mail.com', 
 	    true);
+-- Пароль admin
+
+select * from Type_Display;
+select * from Type_Monitor;
 select * from Type_Users;
+
+drop TABLE Type_Monitor;
+drop TABLE Type_Display;
+drop TABLE Type_Users;
