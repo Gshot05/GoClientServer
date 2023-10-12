@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	_ "github.com/lib/pq"
+	"github.com/nats-io/nats.go"
 )
 
 type Display struct {
@@ -38,10 +39,11 @@ type User struct {
 var (
 	db         *sql.DB
 	userTokens map[string]string
+	nc         *nats.Conn
 )
 
 func main() {
-	connStr := "user=postgres password= dbname= sslmode=disable"
+	connStr := "user=postgres password=0Shikhrik12$& dbname=GoDataBase sslmode=disable"
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -59,6 +61,16 @@ func main() {
 	http.HandleFunc("/getMonitor", getMonitor)
 	http.HandleFunc("/register", registerUser)
 	http.HandleFunc("/login", loginUser)
+
+	natsURL := "nats://95.165.107.100:4222"
+	log.Println("Connecting to NATS...")
+	nc, err = nats.Connect(natsURL)
+	if err != nil {
+		log.Println("NATS connection failed:")
+		log.Fatal(err)
+	}
+	log.Println("NATS connection success")
+	defer nc.Close()
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -171,6 +183,25 @@ func addDisplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := r.FormValue("userId")
+
+	if userID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	message := fmt.Sprintf("addDisplay allowed for User id: %s", userID)
+	nc.Publish("log", []byte(message))
+
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error processing addDisplay for User id: %s - %s", userID, err.Error())
+		nc.Publish("error", []byte(errorMessage))
+
+		log.Println("Error processing addDisplay:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -200,6 +231,25 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Ошибка при добавлении в базу данных:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	userID := r.FormValue("userId")
+
+	if userID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	message := fmt.Sprintf("addMonitor allowed for User id: %s", userID)
+	nc.Publish("log", []byte(message))
+
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error processing addMonitor for User id: %s - %s", userID, err.Error())
+		nc.Publish("error", []byte(errorMessage))
+
+		log.Println("Error processing addMonitor:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -260,6 +310,18 @@ func getAll(w http.ResponseWriter, r *http.Request) {
 		Monitors: monitors,
 	}
 
+	message := "getMonitors requested"
+	nc.Publish("log", []byte(message))
+
+	if err != nil {
+		errorMessage := fmt.Sprintf("Error processing getAll - %s", err.Error())
+		nc.Publish("error", []byte(errorMessage))
+
+		log.Println("Error processing getAll:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }
@@ -277,13 +339,13 @@ func getMonitor(w http.ResponseWriter, r *http.Request) {
             d.Name_Resolution,
             d.Type_Type,
             d.Type_Gsync,
-			m.Type_Display_ID
+            m.Type_Display_ID
         FROM
             Type_Monitor AS m
         INNER JOIN
             Type_Display AS d ON m.Type_Display_ID = d.ID_Type_Display
-		WHERE
-			m.Type_Display_ID = $1
+        WHERE
+            m.Type_Display_ID = $1
     `, id).Scan(
 		&monitor.Voltage,
 		&monitor.GSyncPrem,
@@ -297,9 +359,14 @@ func getMonitor(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("Ошибка при запросе данных из базы данных:", err)
+		errorMessage := fmt.Sprintf("Error processing getMonitor - %s", err.Error())
+		nc.Publish("error", []byte(errorMessage))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	message := fmt.Sprintf("getMonitor requested for Type_Display_ID: %s", id)
+	nc.Publish("log", []byte(message))
 
 	monitor.DisplayMonitor = display
 
