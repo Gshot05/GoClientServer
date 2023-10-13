@@ -11,7 +11,7 @@ import (
 	"net/http"
 
 	_ "github.com/lib/pq"
-	_ "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go"
 )
 
 type Display struct {
@@ -38,7 +38,7 @@ type User struct {
 
 var (
 	db         *sql.DB
-	userTokens map[string]string
+	userTokens map[string]User
 	nc         *nats.Conn
 )
 
@@ -51,7 +51,7 @@ func main() {
 	}
 	defer db.Close()
 
-	userTokens = make(map[string]string)
+	userTokens = make(map[string]User)
 
 	fmt.Println("Запуск сервера...")
 
@@ -136,14 +136,14 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// func isAdmin(username string) bool {
-// 	var isAdmin bool
-// 	err := db.QueryRow("SELECT Name_Is_Admin FROM Type_Users WHERE Name_Username = $1", username).Scan(&isAdmin)
-// 	if err != nil {
-// 		return false
-// 	}
-// 	return isAdmin
-// }
+func isAdmin(username string) bool {
+	var isAdmin bool
+	err := db.QueryRow("SELECT Name_Is_Admin FROM Type_Users WHERE Name_Username = $1", username).Scan(&isAdmin)
+	if err != nil {
+		return false
+	}
+	return isAdmin
+}
 
 func getUsernameFromToken(token string) (string, error) {
 	if len(token) < 8 || token[:7] != "Bearer " {
@@ -162,18 +162,18 @@ func addDisplay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// token := r.Header.Get("Authorization")
+	token := r.Header.Get("Authorization")
 
-	// username, err := getUsernameFromToken(token)
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
+	username, err := getUsernameFromToken(token)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
-	// if !isAdmin(username) {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
+	if !isAdmin(username) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	_, err = db.Exec("INSERT INTO Type_Display (Name_Diagonal, Name_Resolution, Type_Type, Type_Gsync) VALUES ($1, $2, $3, $4)",
 		display.Diagonal, display.Resolution, display.TypeMatrix, display.GSync)
@@ -213,18 +213,18 @@ func addMonitor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// token := r.Header.Get("Authorization")
+	token := r.Header.Get("Authorization")
 
-	// username, err := getUsernameFromToken(token)
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
+	username, err := getUsernameFromToken(token)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
-	// if !isAdmin(username) {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	return
-	// }
+	if !isAdmin(username) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
 
 	_, err = db.Exec("INSERT INTO Type_Monitor (Name_Voltage, Name_Gsync_Prem, Name_Curved, Type_Display_ID) VALUES ($1, $2, $3, $4)",
 		monitor.Voltage, monitor.GSyncPrem, monitor.Curved, monitor.Type_Display_ID)
@@ -268,7 +268,7 @@ func getAll(w http.ResponseWriter, r *http.Request) {
             d.Name_Resolution,
             d.Type_Type,
             d.Type_Gsync,
-	    m.Type_Display_ID
+			m.Type_Display_ID
         FROM
             Type_Monitor AS m
         INNER JOIN
