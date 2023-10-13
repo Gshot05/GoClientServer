@@ -11,7 +11,7 @@ import (
 	"net/http"
 
 	_ "github.com/lib/pq"
-	"github.com/nats-io/nats.go"
+	_ "github.com/nats-io/nats.go"
 )
 
 type Display struct {
