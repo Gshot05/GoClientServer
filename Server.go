@@ -268,7 +268,7 @@ func getAll(w http.ResponseWriter, r *http.Request) {
             d.Name_Resolution,
             d.Type_Type,
             d.Type_Gsync,
-			m.Type_Display_ID
+	    m.Type_Display_ID
         FROM
             Type_Monitor AS m
         INNER JOIN
